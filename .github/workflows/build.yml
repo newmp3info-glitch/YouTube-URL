@@ -16,10 +16,20 @@ jobs:
       with:
         python-version: '3.10'
 
+    # ক্যাশ যোগ করা হলো যাতে পরের বার দ্রুত বিল্ড হয়
+    - name: Cache Buildozer directory
+      uses: actions/cache@v3
+      with:
+        path: ~/.buildozer
+        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          ${{ runner.os }}-buildozer-
+
     - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libreadline-dev libsqlite3-dev libssl-dev libffi-dev
+        export DEBIAN_FRONTEND=noninteractive
+        sudo apt-get update -y
+        sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev
         pip install --upgrade pip
         pip install buildozer cython==0.29.36
 
