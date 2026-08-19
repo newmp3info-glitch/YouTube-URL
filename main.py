@@ -38,10 +38,14 @@ def handle_link(message):
     if "http" in url:
         msg = bot.reply_to(message, "Fetching video info, please wait...")
         try:
-            # Using Mobile User-Agent to bypass strict web blocks
             ydl_opts = {
                 'noplaylist': True,
-                'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.5 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': ['android', 'web']
+                    }
+                }
             }
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -61,16 +65,15 @@ def handle_link(message):
                     bot.edit_message_text(f"Video: {info.get('title', 'Video')}\nChoose quality:", 
                                           chat_id=message.chat.id, message_id=msg.message_id, reply_markup=markup)
                 else:
-                    # Fallback if specific heights aren't found, try to grab a direct link
                     direct_url = info.get('url')
                     if direct_url:
                         bot.edit_message_text(f"Video: {info.get('title', 'Video')}", chat_id=message.chat.id, message_id=msg.message_id)
                         bot.send_message(message.chat.id, f"Direct Download Link:\n{direct_url}")
                     else:
-                        bot.edit_message_text("Sorry, couldn't extract formats for this link due to platform restrictions.", 
+                        bot.edit_message_text("Platform is blocking server IP. Direct extraction failed.", 
                                               chat_id=message.chat.id, message_id=msg.message_id)
         except Exception as e:
-            bot.edit_message_text(f"Failed to fetch. Platform might be blocking server IPs.\nError: {str(e)[:100]}", 
+            bot.edit_message_text(f"Error: Server IP blocked or content restricted.\nDetails: {str(e)[:100]}", 
                                   chat_id=message.chat.id, message_id=msg.message_id)
     else:
         bot.reply_to(message, "Please send a valid link.")
@@ -85,7 +88,7 @@ def callback_query(call):
     
     ydl_opts = {
         'format': fmt_id,
-        'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.5 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     }
     try:
         with YoutubeDL(ydl_opts) as ydl:
