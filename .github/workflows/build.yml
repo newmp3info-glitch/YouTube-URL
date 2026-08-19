@@ -17,11 +17,12 @@ jobs:
         with:
           python-version: '3.10'
 
-      # বিল্ডের জন্য পর্যাপ্ত সোয়াপ মেমোরি (Swap Memory) বাড়িয়ে নেওয়া যাতে বড় ফাইল কম্পাইল করার সময় মেমোরি ফুল না হয়
-      - name: Configure Swap Space
-        uses: pierreguillot/workaround-swap-action@v1
-        with:
-          swap-size: 4G
+      - name: Create Swap Space
+        run: |
+          sudo fallocate -l 4G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
 
       - name: Install System Dependencies
         run: |
