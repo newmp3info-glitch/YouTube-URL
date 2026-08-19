@@ -1,6 +1,5 @@
 import os
-import threading
-from flask import Flask
+from flask import Flask, request
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from yt_dlp import YoutubeDL
@@ -13,9 +12,23 @@ if not TOKEN:
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
+# Your Render app primary URL
+RENDER_URL = "https://youtube-url.onrender.com"
+
 @app.route('/')
 def home():
     return "Bot is active and running!"
+
+# Webhook route to receive updates from Telegram
+@app.route(f'/{TOKEN}', methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return "OK", 200
+    else:
+        return "Forbidden", 403
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
@@ -35,16 +48,13 @@ def handle_link(message):
                 info = ydl.extract_info(url, download=False)
                 formats = info.get('formats', [])
                 
-                # Filter formats to show only common ones with video+audio
                 markup = InlineKeyboardMarkup()
                 found = False
                 
                 for f in formats:
-                    # Filter for 360p, 720p, 1080p which have file size info
                     if f.get('filesize') and f.get('height') in [360, 720, 1080]:
                         size_mb = round(f['filesize'] / (1024 * 1024), 2)
                         btn_text = f"{f['height']}p - {size_mb}MB"
-                        # Use format_id as callback_data
                         markup.add(InlineKeyboardButton(btn_text, callback_data=f"{f['format_id']}|{url}"))
                         found = True
                 
@@ -76,13 +86,10 @@ def callback_query(call):
         direct_url = info.get('url')
         bot.send_message(call.message.chat.id, f"Here is your download link:\n{direct_url}")
 
-def run_bot():
-    bot.remove_webhook()
-    bot.infinity_polling()
-
 if __name__ == "__main__":
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.daemon = True
-    bot_thread.start()
+    # Remove old webhook and set the new one
+    bot.remove_webhook()
+    bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
+    
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
