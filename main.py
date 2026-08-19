@@ -12,14 +12,12 @@ if not TOKEN:
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# Your Render app primary URL
 RENDER_URL = "https://youtube-url.onrender.com"
 
 @app.route('/')
 def home():
     return "Bot is active and running!"
 
-# Webhook route to receive updates from Telegram
 @app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
@@ -40,9 +38,10 @@ def handle_link(message):
     if "http" in url:
         msg = bot.reply_to(message, "Fetching video info, please wait...")
         try:
+            # Using Mobile User-Agent to bypass strict web blocks
             ydl_opts = {
                 'noplaylist': True,
-                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.5 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
             }
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -59,13 +58,20 @@ def handle_link(message):
                         found = True
                 
                 if found:
-                    bot.edit_message_text(f"Video: {info.get('title')}\nChoose quality:", 
+                    bot.edit_message_text(f"Video: {info.get('title', 'Video')}\nChoose quality:", 
                                           chat_id=message.chat.id, message_id=msg.message_id, reply_markup=markup)
                 else:
-                    bot.edit_message_text("Sorry, couldn't find proper quality options for this video.", 
-                                          chat_id=message.chat.id, message_id=msg.message_id)
+                    # Fallback if specific heights aren't found, try to grab a direct link
+                    direct_url = info.get('url')
+                    if direct_url:
+                        bot.edit_message_text(f"Video: {info.get('title', 'Video')}", chat_id=message.chat.id, message_id=msg.message_id)
+                        bot.send_message(message.chat.id, f"Direct Download Link:\n{direct_url}")
+                    else:
+                        bot.edit_message_text("Sorry, couldn't extract formats for this link due to platform restrictions.", 
+                                              chat_id=message.chat.id, message_id=msg.message_id)
         except Exception as e:
-            bot.edit_message_text(f"Error: {str(e)}", chat_id=message.chat.id, message_id=msg.message_id)
+            bot.edit_message_text(f"Failed to fetch. Platform might be blocking server IPs.\nError: {str(e)[:100]}", 
+                                  chat_id=message.chat.id, message_id=msg.message_id)
     else:
         bot.reply_to(message, "Please send a valid link.")
 
@@ -79,17 +85,18 @@ def callback_query(call):
     
     ydl_opts = {
         'format': fmt_id,
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.5 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
     }
-    with YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        direct_url = info.get('url')
-        bot.send_message(call.message.chat.id, f"Here is your download link:\n{direct_url}")
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            direct_url = info.get('url')
+            bot.send_message(call.message.chat.id, f"Here is your download link:\n{direct_url}")
+    except Exception as e:
+        bot.send_message(call.message.chat.id, f"Error generating link: {str(e)}")
 
 if __name__ == "__main__":
-    # Remove old webhook and set the new one
     bot.remove_webhook()
     bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
-    
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
