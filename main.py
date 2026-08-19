@@ -4,8 +4,11 @@ from flask import Flask
 import telebot
 from yt_dlp import YoutubeDL
 
-# Get Token from environment variable or replace directly
-TOKEN = os.getenv('BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE')
+# Get Token strictly from Render environment variable
+TOKEN = os.getenv('BOT_TOKEN')
+if not TOKEN:
+    raise ValueError("BOT_TOKEN environment variable is missing!")
+
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
@@ -13,11 +16,11 @@ app = Flask(__name__)
 def home():
     return "Bot is active and running!"
 
-@bot.message_handler(commands=['start'])
+@app.message_handler(commands=['start'])
 def send_welcome(message):
     bot.reply_to(message, "Hello! Send me any YouTube, Facebook, or Instagram video link, and I will generate the download link for you.")
 
-@bot.message_handler(func=lambda message: True)
+@app.message_handler(func=lambda message: True)
 def handle_link(message):
     url = message.text.strip()
     if "http" in url:
@@ -39,6 +42,8 @@ def handle_link(message):
         bot.reply_to(message, "Please send a valid video link containing http/https.")
 
 def run_bot():
+    # Remove active webhook to fix conflict error 409
+    bot.remove_webhook()
     bot.infinity_polling()
 
 if __name__ == "__main__":
