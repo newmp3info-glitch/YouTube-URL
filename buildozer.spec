@@ -13,5 +13,5 @@ android.api = 31
 android.min_api = 21
 android.ndk = 23b
 android.sdk_api_version = 31
-android.archs = arm64-v8a, armeabi-v7a
+android.archs = arm64-v8a
 android.accept_sdk_license = True
