@@ -1,105 +1,94 @@
 import os
-from flask import Flask, request
-import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
+from kivy.uix.label import Label
+from kivy.uix.scrollview import ScrollView
 from yt_dlp import YoutubeDL
 
-# Get Token strictly from Render environment variable
-TOKEN = os.getenv('BOT_TOKEN')
-if not TOKEN:
-    raise ValueError("BOT_TOKEN environment variable is missing!")
+class DownloaderApp(App):
+    def build(self):
+        self.title = "Video Downloader"
+        root = BoxLayout(orientation='vertical', padding=15, spacing=15)
+        
+        # অ্যাপের হেডার
+        title_lbl = Label(text="[b]Standalone Video Downloader[/b]", markup=True, size_hint_y=None, height=40, font_size=20)
+        root.add_widget(title_lbl)
+        
+        # লিংক ইনপুট বক্স
+        self.url_input = TextInput(hint_text='Paste YouTube / Facebook / Insta Link here...', size_hint_y=None, height=50)
+        root.add_widget(self.url_input)
+        
+        # ফেচ বাটন
+        fetch_btn = Button(text='Get Video Info & Sizes', size_hint_y=None, height=50, background_color=(0.1, 0.6, 0.3, 1))
+        fetch_btn.bind(on_press=self.fetch_info)
+        root.add_widget(fetch_btn)
+        
+        # রেজাল্ট দেখানোর লেআউট (স্ক্রোলযোগ্য)
+        self.result_layout = BoxLayout(orientation='vertical', size_hint_y=None, spacing=10)
+        self.result_layout.bind(minimum_height=self.result_layout.setter('height'))
+        
+        scroll = ScrollView(size_hint=(1, 1))
+        scroll.add_widget(self.result_layout)
+        root.add_widget(scroll)
+        
+        return root
 
-bot = telebot.TeleBot(TOKEN)
-app = Flask(__name__)
-
-RENDER_URL = "https://youtube-url.onrender.com"
-
-@app.route('/')
-def home():
-    return "Bot is active and running!"
-
-@app.route(f'/{TOKEN}', methods=['POST'])
-def webhook():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return "OK", 200
-    else:
-        return "Forbidden", 403
-
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    bot.reply_to(message, "Hello! Send me any YouTube, Facebook, or Instagram video link, and I will show download options.")
-
-@bot.message_handler(func=lambda message: True)
-def handle_link(message):
-    url = message.text.strip()
-    if "http" in url:
-        msg = bot.reply_to(message, "Fetching video info, please wait...")
+    def fetch_info(self, instance):
+        url = self.url_input.text.strip()
+        self.result_layout.clear_widgets()
+        
+        if not url:
+            self.result_layout.add_widget(Label(text="Please enter a valid URL!", size_hint_y=None, height=40))
+            return
+        
+        loading_lbl = Label(text="Fetching details and sizes...", size_hint_y=None, height=40)
+        self.result_layout.add_widget(loading_lbl)
+        
         try:
-            ydl_opts = {
-                'noplaylist': True,
-                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-                'extractor_args': {
-                    'youtube': {
-                        'player_client': ['android', 'web']
-                    }
-                }
-            }
+            ydl_opts = {'noplaylist': True}
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
+                title = info.get('title', 'Video')
                 formats = info.get('formats', [])
                 
-                markup = InlineKeyboardMarkup()
-                found = False
+                self.result_layout.clear_widgets()
+                self.result_layout.add_widget(Label(text=f"[b]Title:[/b] {title[:40]}...", markup=True, size_hint_y=None, height=40))
                 
+                found = False
                 for f in formats:
+                    # নির্দিষ্ট কোয়ালিটি এবং ফাইল সাইজ ফিল্টার করা
                     if f.get('filesize') and f.get('height') in [360, 720, 1080]:
                         size_mb = round(f['filesize'] / (1024 * 1024), 2)
-                        btn_text = f"{f['height']}p - {size_mb}MB"
-                        markup.add(InlineKeyboardButton(btn_text, callback_data=f"{f['format_id']}|{url}"))
+                        fmt_id = f['format_id']
+                        height = f['height']
+                        
+                        btn_text = f"Download {height}p ({size_mb} MB)"
+                        dl_btn = Button(text=btn_text, size_hint_y=None, height=50, background_color=(0.2, 0.4, 0.8, 1))
+                        dl_btn.bind(on_press=lambda x, fid=fmt_id, u=url: self.download_video(fid, u))
+                        self.result_layout.add_widget(dl_btn)
                         found = True
                 
-                if found:
-                    bot.edit_message_text(f"Video: {info.get('title', 'Video')}\nChoose quality:", 
-                                          chat_id=message.chat.id, message_id=msg.message_id, reply_markup=markup)
-                else:
-                    direct_url = info.get('url')
-                    if direct_url:
-                        bot.edit_message_text(f"Video: {info.get('title', 'Video')}", chat_id=message.chat.id, message_id=msg.message_id)
-                        bot.send_message(message.chat.id, f"Direct Download Link:\n{direct_url}")
-                    else:
-                        bot.edit_message_text("Platform is blocking server IP. Direct extraction failed.", 
-                                              chat_id=message.chat.id, message_id=msg.message_id)
+                if not found:
+                    self.result_layout.add_widget(Label(text="No direct formats found for this link.", size_hint_y=None, height=40))
         except Exception as e:
-            bot.edit_message_text(f"Error: Server IP blocked or content restricted.\nDetails: {str(e)[:100]}", 
-                                  chat_id=message.chat.id, message_id=msg.message_id)
-    else:
-        bot.reply_to(message, "Please send a valid link.")
+            self.result_layout.clear_widgets()
+            self.result_layout.add_widget(Label(text=f"Error: {str(e)[:60]}", size_hint_y=None, height=40))
 
-@bot.callback_query_handler(func=lambda call: True)
-def callback_query(call):
-    data = call.data.split('|')
-    fmt_id = data[0]
-    url = data[1]
-    
-    bot.answer_callback_query(call.id, "Generating link...")
-    
-    ydl_opts = {
-        'format': fmt_id,
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    }
-    try:
-        with YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            direct_url = info.get('url')
-            bot.send_message(call.message.chat.id, f"Here is your download link:\n{direct_url}")
-    except Exception as e:
-        bot.send_message(call.message.chat.id, f"Error generating link: {str(e)}")
+    def download_video(self, fmt_id, url):
+        # ফোনের ইন্টারনাল স্টোরেজের Download ফোল্ডারে সেভ করার পাথ
+        download_path = '/sdcard/Download/%(title)s.%(ext)s'
+        ydl_opts = {
+            'format': fmt_id,
+            'outtmpl': download_path,
+        }
+        try:
+            with YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+            print("Download Completed!")
+        except Exception as e:
+            print(f"Download Error: {e}")
 
-if __name__ == "__main__":
-    bot.remove_webhook()
-    bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+if __name__ == '__main__':
+    DownloaderApp().run()
