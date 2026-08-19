@@ -5,7 +5,7 @@ package.domain = org.downloader
 source.include_exts = py,png,jpg,kv,atlas
 source.dir = .
 version = 1.0
-requirements = python3, kivy, cython==0.29.36, requests, yt-dlp, certifi
+requirements = python3, kivy, cython, requests, yt-dlp, certifi
 orientation = portrait
 fullscreen = 0
 android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
