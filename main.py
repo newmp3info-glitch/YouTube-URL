@@ -27,7 +27,10 @@ def handle_link(message):
     if "http" in url:
         msg = bot.reply_to(message, "Fetching video info, please wait...")
         try:
-            ydl_opts = {'noplaylist': True}
+            ydl_opts = {
+                'noplaylist': True,
+                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            }
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
                 formats = info.get('formats', [])
@@ -64,7 +67,11 @@ def callback_query(call):
     
     bot.answer_callback_query(call.id, "Generating link...")
     
-    with YoutubeDL({'format': fmt_id}) as ydl:
+    ydl_opts = {
+        'format': fmt_id,
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    }
+    with YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
         direct_url = info.get('url')
         bot.send_message(call.message.chat.id, f"Here is your download link:\n{direct_url}")
