@@ -16,11 +16,11 @@ app = Flask(__name__)
 def home():
     return "Bot is active and running!"
 
-@app.message_handler(commands=['start'])
+@bot.message_handler(commands=['start'])
 def send_welcome(message):
     bot.reply_to(message, "Hello! Send me any YouTube, Facebook, or Instagram video link, and I will generate the download link for you.")
 
-@app.message_handler(func=lambda message: True)
+@bot.message_handler(func=lambda message: True)
 def handle_link(message):
     url = message.text.strip()
     if "http" in url:
