@@ -6,8 +6,7 @@ source.include_exts = py,png,jpg,kv,atlas
 source.dir = .
 version = 1.0
 
-# সঠিক রিকোয়ারমেন্টস (এখানে python3 এর সাথে কোনো ==3.10 দেওয়া যাবে না)
-requirements = python3, kivy, requests, certifi, urllib3, idna, charset-normalizer
+requirements = python3, kivy, cython==0.29.36, requests, certifi
 
 orientation = portrait
 fullscreen = 0
