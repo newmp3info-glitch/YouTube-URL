@@ -6,9 +6,10 @@ source.include_exts = py,png,jpg,kv,atlas
 source.dir = .
 version = 1.0
 
-requirements = python3, kivy, requests, certifi
+# পাইথন ৩.১৪ এরর চিরতরে বন্ধ করতে এখানে সরাসরি python3.11 নির্দিষ্ট করে দেওয়া হলো
+requirements = python3.11, kivy, requests, certifi
 
-# পাইথন ৩.১৪ এরর এড়াতে নির্দিষ্টভাবে ৩.১১ ভার্সন সেট করা হলো
+# পাইথন ভার্সন নিশ্চিত করার জন্য
 android.python_version = 3.11
 
 orientation = portrait
