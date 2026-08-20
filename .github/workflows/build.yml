@@ -7,44 +7,21 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    container:
+      image: kivy/buildozer:latest
+      options: --user root
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Create Swap Space
+      - name: Fix Git Permission
         run: |
-          sudo swapoff /swapfile || true
-          sudo rm -f /swapfile
-          sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-
-      - name: Install System Dependencies
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          sudo apt-get install -y \
-            git zip unzip openjdk-17-jdk autoconf automake libtool pkg-config \
-            zlib1g-dev libncurses5-dev libncursesw5-dev libffi-dev libssl-dev \
-            build-essential ccache libltdl-dev
-
-      - name: Install Buildozer and Cython
-        run: |
-          pip install --upgrade pip
-          pip install --user cython==0.29.36 buildozer
-
-      - name: Add local bin to PATH
-        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+          git config --global --add safe.directory '*'
 
       - name: Build with Buildozer
-        run: buildozer -v android debug
+        run: |
+          buildozer -v android debug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
